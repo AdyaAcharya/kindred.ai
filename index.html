@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kindred AI - PDF Upload</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            width: 100%;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: #2563eb;
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .logo-icon {
+            width: 50px;
+            height: 50px;
+            background: white;
+            color: #2563eb;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .upload-area {
+            padding: 50px 30px;
+            text-align: center;
+        }
+
+        .upload-box {
+            border: 3px dashed #d1d5db;
+            border-radius: 15px;
+            padding: 60px 40px;
+            margin: 20px 0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .upload-box:hover {
+            border-color: #2563eb;
+            background: #f0f4ff;
+        }
+
+        .upload-icon {
+            font-size: 64px;
+            color: #2563eb;
+            margin-bottom: 20px;
+        }
+
+        .upload-text h3 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+            color: #1f2937;
+        }
+
+        .upload-text p {
+            color: #6b7280;
+            margin-bottom: 20px;
+        }
+
+        .browse-btn {
+            display: inline-block;
+            padding: 12px 30px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .browse-btn:hover {
+            background: #1d4ed8;
+            transform: translateY(-2px);
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .file-info {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f3f4f6;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .file-info.active {
+            display: block;
+        }
+
+        .file-name {
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 5px;
+        }
+
+        .file-size {
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+
+        .upload-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 30px;
+            display: none;
+            transition: all 0.3s ease;
+        }
+
+        .upload-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .upload-btn.active {
+            display: block;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 10px;
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #6b7280;
+            font-size: 0.9rem;
+            border-top: 1px solid #e5e7eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">
+                <div class="logo-icon">K</div>
+                <span>Kindred AI</span>
+            </div>
+            <p>Upload PDF and read with AI assistance</p>
+        </div>
+
+        <div class="upload-area">
+            <div class="upload-box" id="uploadBox" onclick="document.getElementById('fileInput').click()">
+                <div class="upload-icon">📚</div>
+                <div class="upload-text">
+                    <h3>Upload PDF Document</h3>
+                    <p>Click to browse or drag & drop PDF file</p>
+                    <button class="browse-btn">Browse Files</button>
+                </div>
+            </div>
+
+            <input type="file" id="fileInput" accept=".pdf">
+
+            <div class="file-info" id="fileInfo">
+                <div class="file-name" id="fileName"></div>
+                <div class="file-size" id="fileSize"></div>
+            </div>
+
+            <button class="upload-btn" id="uploadBtn">
+                <span id="btnText">Open in PDF Reader →</span>
+                <span class="loading" id="btnLoading">
+                    <span class="spinner"></span> Loading...
+                </span>
+            </button>
+        </div>
+
+        <div class="footer">
+            <p>© 2024 Kindred AI. All rights reserved.</p>
+            <p>Supports PDF files up to 50MB</p>
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const fileName = document.getElementById('fileName');
+        const fileSize = document.getElementById('fileSize');
+        const btnText = document.getElementById('btnText');
+        const btnLoading = document.getElementById('btnLoading');
+        const uploadBox = document.getElementById('uploadBox');
+
+        // Store selected file
+        let selectedFile = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            setupEventListeners();
+        });
+
+        // Setup event listeners
+        function setupEventListeners() {
+            // File input change
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files[0]) {
+                    handleFileSelect(e.target.files[0]);
+                }
+            });
+
+            // Drag and drop
+            uploadBox.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadBox.style.borderColor = '#2563eb';
+                uploadBox.style.background = '#f0f4ff';
+            });
+
+            uploadBox.addEventListener('dragleave', () => {
+                uploadBox.style.borderColor = '#d1d5db';
+                uploadBox.style.background = '';
+            });
+
+            uploadBox.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadBox.style.borderColor = '#d1d5db';
+                uploadBox.style.background = '';
+                
+                if (e.dataTransfer.files[0]) {
+                    handleFileSelect(e.dataTransfer.files[0]);
+                }
+            });
+
+            // Upload button click
+            uploadBtn.addEventListener('click', openPDFReader);
+        }
+
+        // Handle file selection
+        function handleFileSelect(file) {
+            // Validate file
+            if (file.type !== 'application/pdf') {
+                alert('Please select a PDF file (ending with .pdf)');
+                return;
+            }
+
+            if (file.size > 50 * 1024 * 1024) { // 50MB limit
+                alert('File size must be less than 50MB');
+                return;
+            }
+
+            selectedFile = file;
+
+            // Update UI
+            fileName.textContent = file.name;
+            fileSize.textContent = formatFileSize(file.size);
+            fileInfo.classList.add('active');
+            uploadBtn.classList.add('active');
+        }
+
+        // Open PDF Reader
+        function openPDFReader() {
+            if (!selectedFile) {
+                alert('Please select a PDF file first.');
+                return;
+            }
+
+            // Show loading
+            btnText.style.display = 'none';
+            btnLoading.style.display = 'inline';
+
+            // Convert file to base64
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                // Store in localStorage
+                localStorage.setItem('kindred_pdf_data', e.target.result);
+                localStorage.setItem('kindred_pdf_name', selectedFile.name);
+                localStorage.setItem('kindred_pdf_size', selectedFile.size);
+                
+                // Navigate to PDF reader
+                setTimeout(() => {
+                    window.location.href = 'pdf-reader.html';
+                }, 500);
+            };
+            
+            reader.onerror = function() {
+                alert('Error reading file. Please try again.');
+                btnText.style.display = 'inline';
+                btnLoading.style.display = 'none';
+            };
+            
+            reader.readAsDataURL(selectedFile);
+        }
+
+        // Format file size
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,1384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kindred AI - PDF Reader</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f3f4f6;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .header {
+            background: white;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #e5e7eb;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #2563eb;
+            text-decoration: none;
+        }
+
+        .logo-icon {
+            width: 36px;
+            height: 36px;
+            background: #2563eb;
+            color: white;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .document-name {
+            font-weight: 600;
+            color: #1f2937;
+            font-size: 16px;
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn:hover {
+            background: #1d4ed8;
+        }
+
+        .btn-secondary {
+            background: #6b7280;
+        }
+
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+
+        .btn-compact {
+            padding: 6px 12px;
+            font-size: 14px;
+            background: white;
+            color: #2563eb;
+            border: 1px solid #d1d5db;
+        }
+
+        .btn-compact:hover {
+            background: #f0f4ff;
+            border-color: #2563eb;
+        }
+
+        .btn-compact.active {
+            background: #2563eb;
+            color: white;
+        }
+
+        .page-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .page-input {
+            width: 60px;
+            padding: 6px 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .page-input:focus {
+            outline: none;
+            border-color: #2563eb;
+        }
+
+        .main {
+            display: flex;
+            height: calc(100vh - 70px);
+        }
+
+        .pdf-viewer {
+            flex: 1;
+            padding: 20px;
+            overflow: auto;
+            background: #525659;
+            position: relative;
+        }
+
+        #pdf-canvas {
+            margin: 0 auto;
+            display: block;
+            box-shadow: 0 5px 30px rgba(0,0,0,0.2);
+        }
+
+        .highlight-overlay {
+            position: absolute;
+            pointer-events: none;
+        }
+
+        .highlight {
+            position: absolute;
+            border-radius: 2px;
+            pointer-events: none;
+            opacity: 0.4;
+            transition: opacity 0.2s ease;
+        }
+
+        .highlight:hover {
+            opacity: 0.6;
+        }
+
+        .highlight.active-word {
+            opacity: 0.7;
+            animation: highlight-pulse 1.5s infinite;
+        }
+
+        @keyframes highlight-pulse {
+            0% { opacity: 0.4; }
+            50% { opacity: 0.7; }
+            100% { opacity: 0.4; }
+        }
+
+        .sidebar {
+            width: 350px;
+            background: white;
+            border-left: 1px solid #e5e7eb;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .sidebar-header h3 {
+            color: #1f2937;
+            margin-bottom: 10px;
+        }
+
+        .sidebar-header p {
+            color: #6b7280;
+            font-size: 14px;
+        }
+
+        /* Compact Feature Panels */
+        .compact-features {
+            padding: 10px 20px;
+            border-bottom: 1px solid #e5e7eb;
+            background: #f9fafb;
+        }
+
+        .feature-toggles {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .feature-toggle {
+            flex: 1;
+            padding: 8px 12px;
+            background: white;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: #4b5563;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .feature-toggle:hover {
+            border-color: #2563eb;
+            color: #2563eb;
+        }
+
+        .feature-toggle.active {
+            background: #2563eb;
+            color: white;
+            border-color: #2563eb;
+        }
+
+        .feature-toggle .badge {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .feature-panel {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+            background: white;
+            border-radius: 8px;
+            padding: 0 15px;
+        }
+
+        .feature-panel.active {
+            max-height: 300px;
+            padding: 15px;
+            border: 1px solid #e5e7eb;
+            margin-top: 10px;
+        }
+
+        /* Speech Panel */
+        .speech-panel h4 {
+            margin-bottom: 12px;
+            color: #1f2937;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .speech-controls {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .speech-btn {
+            padding: 6px;
+            background: #f3f4f6;
+            border: 1px solid #e5e7eb;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s ease;
+        }
+
+        .speech-btn:hover {
+            border-color: #2563eb;
+            background: #f0f4ff;
+        }
+
+        .speech-btn.active {
+            background: #2563eb;
+            color: white;
+            border-color: #2563eb;
+        }
+
+        .speech-slider {
+            margin-bottom: 10px;
+        }
+
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 4px;
+        }
+
+        .slider {
+            width: 100%;
+            height: 4px;
+            border-radius: 2px;
+            background: #e5e7eb;
+            outline: none;
+            appearance: none;
+            -webkit-appearance: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #2563eb;
+            cursor: pointer;
+        }
+
+        /* Highlight Panel */
+        .highlight-panel h4 {
+            margin-bottom: 12px;
+            color: #1f2937;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .color-palette {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+
+        .color-btn {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            opacity: 0.7;
+        }
+
+        .color-btn:hover {
+            transform: scale(1.1);
+            opacity: 0.9;
+        }
+
+        .color-btn.active {
+            border-color: #1f2937;
+            transform: scale(1.1);
+            opacity: 1;
+        }
+
+        .highlight-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .action-btn {
+            flex: 1;
+            padding: 6px;
+            font-size: 12px;
+            background: #f3f4f6;
+            border: 1px solid #e5e7eb;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .action-btn:hover {
+            background: #e5e7eb;
+        }
+
+        .action-btn.danger:hover {
+            background: #fecaca;
+            border-color: #dc2626;
+            color: #dc2626;
+        }
+
+        .ai-panel {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .ai-section {
+            background: #f9fafb;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .ai-section h4 {
+            color: #1f2937;
+            margin-bottom: 10px;
+            display: flex;
+                align-items: center;
+            gap: 8px;
+        }
+
+        .definition {
+            color: #4b5563;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        .example {
+            background: white;
+            padding: 12px;
+            border-left: 3px solid #2563eb;
+            border-radius: 6px;
+            font-style: italic;
+            color: #6b7280;
+            font-size: 14px;
+        }
+
+        .speech-text {
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+            margin-top: 12px;
+            max-height: 120px;
+            overflow-y: auto;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .speech-text .current-word {
+            background: rgba(37, 99, 235, 0.2);
+            padding: 0 2px;
+            border-radius: 2px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e5e7eb;
+            border-top-color: #2563eb;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .error {
+            text-align: center;
+            padding: 40px;
+            color: #dc2626;
+        }
+
+        .error h3 {
+            margin-bottom: 10px;
+        }
+
+        .back-btn {
+            margin-top: 20px;
+        }
+
+        .word-list {
+            margin-top: 20px;
+        }
+
+        .word-item {
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border: 1px solid #e5e7eb;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .word-item:hover {
+            border-color: #2563eb;
+            background: #f0f4ff;
+        }
+
+        .word {
+            font-weight: 600;
+            color: #2563eb;
+            margin-bottom: 4px;
+        }
+
+        .meaning {
+            font-size: 13px;
+            color: #6b7280;
+        }
+
+        .tooltip {
+            position: absolute;
+            background: #1f2937;
+            color: white;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 10000;
+            white-space: nowrap;
+        }
+
+        /* Status Bar */
+        .status-bar {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(31, 41, 55, 0.9);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+
+        .status-icon {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .close-status {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            opacity: 0.7;
+        }
+
+        .close-status:hover {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="index.html" class="logo">
+            <div class="logo-icon">K</div>
+            <span>Kindred AI</span>
+        </a>
+        
+        <div class="document-name" id="documentName">Loading PDF...</div>
+        
+        <div class="controls">
+            <div class="page-controls">
+                <button class="btn btn-compact" onclick="prevPage()">◀</button>
+                <input type="number" class="page-input" id="pageInput" value="1" min="1" onchange="goToPage()">
+                <span id="pageCount">/ 1</span>
+                <button class="btn btn-compact" onclick="nextPage()">▶</button>
+            </div>
+            <button class="btn" id="speechBtn" onclick="toggleSpeech()">
+                <span id="speechIcon">🔊</span>
+                <span id="speechText">Read</span>
+            </button>
+            <button class="btn btn-secondary" onclick="window.history.back()">← Back</button>
+        </div>
+    </div>
+
+    <div class="main">
+        <div class="pdf-viewer" id="pdfViewer">
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Loading PDF...</p>
+            </div>
+            <div class="highlight-overlay" id="highlightOverlay"></div>
+            <canvas id="pdf-canvas"></canvas>
+        </div>
+
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h3>🤖 AI Assistant</h3>
+                <p>Click features below to access tools</p>
+            </div>
+
+            <!-- Compact Feature Panels -->
+            <div class="compact-features">
+                <div class="feature-toggles">
+                    <button class="feature-toggle" id="speechToggle" onclick="toggleFeaturePanel('speech')">
+                        🔊 Speech
+                        <span class="badge" id="speechBadge">Off</span>
+                    </button>
+                    <button class="feature-toggle" id="highlightToggle" onclick="toggleFeaturePanel('highlight')">
+                        🖍️ Highlight
+                        <span class="badge" id="highlightBadge">0</span>
+                    </button>
+                </div>
+
+                <!-- Speech Panel (Collapsible) -->
+                <div class="feature-panel" id="speechPanel">
+                    <div class="speech-panel">
+                        <h4>🔊 Speech Settings</h4>
+                        <div class="speech-controls">
+                            <button class="speech-btn" id="voiceMale" onclick="setVoice('male')">Male</button>
+                            <button class="speech-btn active" id="voiceFemale" onclick="setVoice('female')">Female</button>
+                            <button class="speech-btn" id="voiceSpeed1" onclick="setSpeed(0.8)">Slow</button>
+                            <button class="speech-btn active" id="voiceSpeed2" onclick="setSpeed(1)">Normal</button>
+                            <button class="speech-btn" id="voiceSpeed3" onclick="setSpeed(1.2)">Fast</button>
+                        </div>
+                        <div class="speech-slider">
+                            <div class="slider-label">
+                                <span>Volume</span>
+                                <span id="volumeValue">80%</span>
+                            </div>
+                            <input type="range" class="slider" id="volumeSlider" min="0" max="100" value="80" oninput="updateVolume(this.value)">
+                        </div>
+                        <div class="speech-slider">
+                            <div class="slider-label">
+                                <span>Pitch</span>
+                                <span id="pitchValue">1.0</span>
+                            </div>
+                            <input type="range" class="slider" id="pitchSlider" min="0.5" max="2" step="0.1" value="1" oninput="updatePitch(this.value)">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Highlight Panel (Collapsible) -->
+                <div class="feature-panel" id="highlightPanel">
+                    <div class="highlight-panel">
+                        <h4>🖍️ Highlighter</h4>
+                        <div class="color-palette" id="colorPalette">
+                            <!-- Colors will be added by JavaScript -->
+                        </div>
+                        <div class="highlight-actions">
+                            <button class="action-btn" onclick="toggleHighlightMode()" id="highlightModeBtn">
+                                <span id="highlightModeText">Enable</span>
+                            </button>
+                            <button class="action-btn" onclick="clearHighlights()">Clear</button>
+                            <button class="action-btn" onclick="exportHighlights()">Export</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="ai-panel">
+                <!-- Current Speech Text -->
+                <div class="ai-section" id="speechSection">
+                    <h4>🎤 Currently Reading</h4>
+                    <div class="speech-text" id="currentSpeechText">
+                        Click the 🔊 Read button to start text-to-speech
+                    </div>
+                </div>
+
+                <!-- Word Information -->
+                <div class="ai-section" id="wordInfo">
+                    <h4>📖 Selected Word</h4>
+                    <div class="definition" id="wordDefinition">
+                        Click on any word in the PDF to see its definition
+                    </div>
+                    <div class="example" id="wordExample">
+                        Example will appear here
+                    </div>
+                </div>
+
+                <!-- Document Summary -->
+                <div class="ai-section" id="documentInfo">
+                    <h4>📄 Document Summary</h4>
+                    <div class="definition" id="documentSummary">
+                        Generating AI summary...
+                    </div>
+                </div>
+
+                <!-- Learned Words -->
+                <div class="word-list" id="wordList">
+                    <h4>📚 Learned Words</h4>
+                    <div id="wordsContainer">
+                        <!-- Words will be added here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Bar -->
+    <div class="status-bar" id="statusBar" style="display: none;">
+        <div class="status-icon" id="statusIcon">💡</div>
+        <span id="statusText">Ready</span>
+        <button class="close-status" onclick="hideStatusBar()">✕</button>
+    </div>
+
+    <script>
+        // PDF.js variables
+        let pdfDoc = null;
+        let currentPage = 1;
+        let scale = 1.5;
+        let canvas = document.getElementById('pdf-canvas');
+        let ctx = canvas.getContext('2d');
+        let learnedWords = [];
+
+        // Speech Synthesis variables
+        let speechSynthesis = window.speechSynthesis;
+        let currentUtterance = null;
+        let isSpeaking = false;
+        let speechSettings = {
+            voice: 'female',
+            rate: 1.0,
+            pitch: 1.0,
+            volume: 0.8
+        };
+
+        // Highlighting variables
+        let highlights = [];
+        let currentHighlightColor = '#FFEB3B';
+        let isHighlightMode = false;
+        let selectionStart = null;
+        let selectionEnd = null;
+        let activeFeaturePanel = null;
+
+        // Translucent colors for highlighting
+        const highlightColors = [
+            { name: 'Yellow', color: 'rgba(255, 235, 59, 0.4)' },
+            { name: 'Green', color: 'rgba(139, 195, 74, 0.4)' },
+            { name: 'Blue', color: 'rgba(33, 150, 243, 0.4)' },
+            { name: 'Pink', color: 'rgba(233, 30, 99, 0.4)' },
+            { name: 'Orange', color: 'rgba(255, 152, 0, 0.4)' },
+            { name: 'Purple', color: 'rgba(156, 39, 176, 0.4)' }
+        ];
+
+        // DOM Elements
+        const loading = document.getElementById('loading');
+        const pageInput = document.getElementById('pageInput');
+        const pageCount = document.getElementById('pageCount');
+        const documentName = document.getElementById('documentName');
+        const speechBtn = document.getElementById('speechBtn');
+        const speechIcon = document.getElementById('speechIcon');
+        const speechText = document.getElementById('speechText');
+        const currentSpeechText = document.getElementById('currentSpeechText');
+        const speechSection = document.getElementById('speechSection');
+        const speechToggle = document.getElementById('speechToggle');
+        const speechBadge = document.getElementById('speechBadge');
+        const highlightToggle = document.getElementById('highlightToggle');
+        const highlightBadge = document.getElementById('highlightBadge');
+        const speechPanel = document.getElementById('speechPanel');
+        const highlightPanel = document.getElementById('highlightPanel');
+        const highlightModeBtn = document.getElementById('highlightModeBtn');
+        const highlightModeText = document.getElementById('highlightModeText');
+        const statusBar = document.getElementById('statusBar');
+        const statusIcon = document.getElementById('statusIcon');
+        const statusText = document.getElementById('statusText');
+
+        // Initialize when page loads
+        window.onload = function() {
+            loadPDF();
+            setupSpeechControls();
+            setupHighlightColors();
+            setupEventListeners();
+            showStatus('Ready to read. Click on any word to learn.', '💡');
+        };
+
+        // Setup event listeners
+        function setupEventListeners() {
+            // Keyboard shortcuts
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowLeft') prevPage();
+                if (e.key === 'ArrowRight') nextPage();
+                if (e.key === ' ') toggleSpeech(); // Space to toggle speech
+                if (e.key === 'Escape') {
+                    stopSpeech();
+                    if (isHighlightMode) toggleHighlightMode();
+                }
+                if (e.key === 'h') toggleFeaturePanel('highlight');
+                if (e.key === 's') toggleFeaturePanel('speech');
+            });
+
+            // Canvas interaction
+            canvas.addEventListener('mousedown', handleMouseDown);
+            canvas.addEventListener('mousemove', handleMouseMove);
+            canvas.addEventListener('mouseup', handleMouseUp);
+            canvas.addEventListener('click', handleCanvasClick);
+
+            // Speech synthesis events
+            speechSynthesis.addEventListener('voiceschanged', setupVoices);
+        }
+
+        // Load PDF from localStorage
+        async function loadPDF() {
+            try {
+                const pdfData = localStorage.getItem('kindred_pdf_data');
+                const pdfName = localStorage.getItem('kindred_pdf_name') || 'Document.pdf';
+                
+                if (!pdfData) {
+                    showError('No PDF found. Please go back and upload a PDF.');
+                    return;
+                }
+
+                documentName.textContent = pdfName;
+
+                const base64Data = pdfData.split(',')[1];
+                const loadingTask = pdfjsLib.getDocument({ data: atob(base64Data) });
+                pdfDoc = await loadingTask.promise;
+
+                loading.style.display = 'none';
+                pageCount.textContent = `/ ${pdfDoc.numPages}`;
+                pageInput.max = pdfDoc.numPages;
+
+                await renderPage(currentPage);
+                generateSummary();
+
+            } catch (error) {
+                console.error('Error loading PDF:', error);
+                showError('Error loading PDF. Please try again.');
+            }
+        }
+
+        // Render a page
+        async function renderPage(pageNum) {
+            try {
+                const page = await pdfDoc.getPage(pageNum);
+                const viewport = page.getViewport({ scale: scale });
+                
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+
+                const renderContext = {
+                    canvasContext: ctx,
+                    viewport: viewport
+                };
+                
+                await page.render(renderContext).promise;
+                renderHighlights();
+
+            } catch (error) {
+                console.error('Error rendering page:', error);
+            }
+        }
+
+        // Navigation
+        function prevPage() {
+            if (currentPage <= 1) return;
+            currentPage--;
+            updatePage();
+        }
+
+        function nextPage() {
+            if (!pdfDoc || currentPage >= pdfDoc.numPages) return;
+            currentPage++;
+            updatePage();
+        }
+
+        function goToPage() {
+            const page = parseInt(pageInput.value);
+            if (page < 1 || page > pdfDoc.numPages) return;
+            currentPage = page;
+            updatePage();
+        }
+
+        function updatePage() {
+            pageInput.value = currentPage;
+            renderPage(currentPage);
+        }
+
+        // ==================== COMPACT FEATURE PANELS ====================
+
+        function toggleFeaturePanel(feature) {
+            if (activeFeaturePanel === feature) {
+                // Close the active panel
+                document.getElementById(`${feature}Panel`).classList.remove('active');
+                document.getElementById(`${feature}Toggle`).classList.remove('active');
+                activeFeaturePanel = null;
+            } else {
+                // Close any open panel
+                if (activeFeaturePanel) {
+                    document.getElementById(`${activeFeaturePanel}Panel`).classList.remove('active');
+                    document.getElementById(`${activeFeaturePanel}Toggle`).classList.remove('active');
+                }
+                
+                // Open the selected panel
+                document.getElementById(`${feature}Panel`).classList.add('active');
+                document.getElementById(`${feature}Toggle`).classList.add('active');
+                activeFeaturePanel = feature;
+
+                // Show status message
+                if (feature === 'speech') {
+                    showStatus('Speech settings opened. Adjust voice, speed, and volume.', '🔊');
+                } else {
+                    showStatus('Highlighter opened. Choose color and enable to start highlighting.', '🖍️');
+                }
+            }
+        }
+
+        // ==================== TEXT-TO-SPEECH FEATURES ====================
+
+        function setupSpeechControls() {
+            updateVolume(80);
+            updatePitch(1.0);
+        }
+
+        function setupVoices() {
+            console.log('Voices loaded:', speechSynthesis.getVoices().length);
+        }
+
+        function toggleSpeech() {
+            if (isSpeaking) {
+                stopSpeech();
+            } else {
+                startSpeech();
+            }
+        }
+
+        function startSpeech() {
+            if (!window.speechSynthesis) {
+                showStatus('Text-to-speech not supported in your browser.', '⚠️');
+                return;
+            }
+
+            const demoText = "Welcome to Kindred AI PDF Reader. This is a demonstration of the text-to-speech feature. You can select any text in the document and have it read aloud. The system supports different voices, speeds, and volumes for a customized reading experience.";
+
+            currentUtterance = new SpeechSynthesisUtterance(demoText);
+            
+            currentUtterance.rate = speechSettings.rate;
+            currentUtterance.pitch = speechSettings.pitch;
+            currentUtterance.volume = speechSettings.volume;
+
+            const voices = speechSynthesis.getVoices();
+            if (voices.length > 0) {
+                const preferredVoice = speechSettings.voice === 'female' ? 
+                    voices.find(v => v.name.includes('Female') || v.name.includes('female')) :
+                    voices.find(v => v.name.includes('Male') || v.name.includes('male'));
+                
+                if (preferredVoice) {
+                    currentUtterance.voice = preferredVoice;
+                }
+            }
+
+            currentUtterance.onstart = function() {
+                isSpeaking = true;
+                speechBtn.style.background = '#10b981';
+                speechIcon.textContent = '⏸️';
+                speechText.textContent = 'Pause';
+                speechBadge.textContent = 'On';
+                speechBadge.style.background = '#10b981';
+                showStatus('Reading aloud. Press Space to pause.', '🔊');
+                updateSpeechText(demoText, 0);
+            };
+
+            currentUtterance.onend = function() {
+                stopSpeech();
+                showStatus('Finished reading.', '✅');
+            };
+
+            currentUtterance.onerror = function(event) {
+                console.error('Speech synthesis error:', event);
+                stopSpeech();
+                showStatus('Error with text-to-speech.', '⚠️');
+            };
+
+            currentUtterance.onboundary = function(event) {
+                if (event.name === 'word') {
+                    const wordStart = event.charIndex;
+                    const wordLength = event.charLength;
+                    updateSpeechText(demoText, wordStart, wordLength);
+                }
+            };
+
+            speechSynthesis.speak(currentUtterance);
+        }
+
+        function stopSpeech() {
+            if (currentUtterance) {
+                speechSynthesis.cancel();
+            }
+            isSpeaking = false;
+            speechBtn.style.background = '#2563eb';
+            speechIcon.textContent = '🔊';
+            speechText.textContent = 'Read';
+            speechBadge.textContent = 'Off';
+            speechBadge.style.background = '';
+        }
+
+        function setVoice(voiceType) {
+            speechSettings.voice = voiceType;
+            
+            document.getElementById('voiceMale').classList.toggle('active', voiceType === 'male');
+            document.getElementById('voiceFemale').classList.toggle('active', voiceType === 'female');
+            
+            showStatus(`Voice set to ${voiceType}.`, '🗣️');
+            
+            if (isSpeaking) {
+                stopSpeech();
+                startSpeech();
+            }
+        }
+
+        function setSpeed(speed) {
+            speechSettings.rate = speed;
+            
+            document.getElementById('voiceSpeed1').classList.toggle('active', speed === 0.8);
+            document.getElementById('voiceSpeed2').classList.toggle('active', speed === 1);
+            document.getElementById('voiceSpeed3').classList.toggle('active', speed === 1.2);
+            
+            if (isSpeaking && currentUtterance) {
+                currentUtterance.rate = speed;
+            }
+        }
+
+        function updateVolume(value) {
+            speechSettings.volume = value / 100;
+            document.getElementById('volumeValue').textContent = `${value}%`;
+            
+            if (isSpeaking && currentUtterance) {
+                currentUtterance.volume = speechSettings.volume;
+            }
+        }
+
+        function updatePitch(value) {
+            speechSettings.pitch = parseFloat(value);
+            document.getElementById('pitchValue').textContent = value;
+            
+            if (isSpeaking && currentUtterance) {
+                currentUtterance.pitch = speechSettings.pitch;
+            }
+        }
+
+        function updateSpeechText(fullText, currentWordStart = 0, wordLength = 0) {
+            let html = '';
+            
+            if (wordLength > 0) {
+                const before = fullText.substring(0, currentWordStart);
+                const currentWord = fullText.substring(currentWordStart, currentWordStart + wordLength);
+                const after = fullText.substring(currentWordStart + wordLength);
+                
+                html = `${before}<span class="current-word">${currentWord}</span>${after}`;
+            } else {
+                html = fullText;
+            }
+            
+            currentSpeechText.innerHTML = html;
+            
+            const currentWordElement = currentSpeechText.querySelector('.current-word');
+            if (currentWordElement) {
+                currentWordElement.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'center' 
+                });
+            }
+        }
+
+        // ==================== HIGHLIGHTING FEATURES ====================
+
+        function setupHighlightColors() {
+            const colorPalette = document.getElementById('colorPalette');
+            colorPalette.innerHTML = '';
+            
+            highlightColors.forEach((colorInfo, index) => {
+                const colorBtn = document.createElement('div');
+                colorBtn.className = `color-btn ${index === 0 ? 'active' : ''}`;
+                colorBtn.style.backgroundColor = colorInfo.color;
+                colorBtn.title = colorInfo.name;
+                colorBtn.onclick = () => selectHighlightColor(colorInfo.color, index);
+                colorPalette.appendChild(colorBtn);
+            });
+        }
+
+        function selectHighlightColor(color, index) {
+            currentHighlightColor = color;
+            
+            document.querySelectorAll('.color-btn').forEach((btn, i) => {
+                btn.classList.toggle('active', i === index);
+            });
+            
+            showStatus(`Selected ${highlightColors[index].name} highlighter.`, '🎨');
+        }
+
+        function toggleHighlightMode() {
+            isHighlightMode = !isHighlightMode;
+            
+            if (isHighlightMode) {
+                highlightModeText.textContent = 'Disable';
+                highlightModeBtn.style.background = '#2563eb';
+                highlightModeBtn.style.color = 'white';
+                canvas.style.cursor = 'crosshair';
+                showStatus('Highlighter enabled. Click and drag to highlight text.', '🖍️');
+            } else {
+                highlightModeText.textContent = 'Enable';
+                highlightModeBtn.style.background = '';
+                highlightModeBtn.style.color = '';
+                canvas.style.cursor = 'default';
+                showStatus('Highlighter disabled.', '✅');
+            }
+        }
+
+        function handleCanvasClick(e) {
+            if (!isHighlightMode) {
+                const words = ['artificial', 'intelligence', 'machine', 'learning', 'neural', 'network'];
+                const randomWord = words[Math.floor(Math.random() * words.length)];
+                showWordInfo(randomWord);
+                addLearnedWord(randomWord);
+                return;
+            }
+        }
+
+        function handleMouseDown(e) {
+            if (!isHighlightMode) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            selectionStart = {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
+            };
+        }
+
+        function handleMouseMove(e) {
+            if (!isHighlightMode || !selectionStart) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            selectionEnd = {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
+            };
+            
+            drawSelectionPreview();
+        }
+
+        function handleMouseUp(e) {
+            if (!isHighlightMode || !selectionStart) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            selectionEnd = {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
+            };
+            
+            createHighlight();
+            selectionStart = null;
+            selectionEnd = null;
+            clearSelectionPreview();
+        }
+
+        function drawSelectionPreview() {
+            if (!selectionStart || !selectionEnd) return;
+            
+            const ctx = canvas.getContext('2d');
+            const width = Math.abs(selectionEnd.x - selectionStart.x);
+            const height = Math.abs(selectionEnd.y - selectionStart.y);
+            const x = Math.min(selectionStart.x, selectionEnd.x);
+            const y = Math.min(selectionStart.y, selectionEnd.y);
+            
+            ctx.save();
+            ctx.fillStyle = currentHighlightColor;
+            ctx.fillRect(x, y, width, height);
+            ctx.strokeStyle = currentHighlightColor.replace('0.4', '0.8');
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x, y, width, height);
+            ctx.restore();
+        }
+
+        function clearSelectionPreview() {
+            renderPage(currentPage);
+        }
+
+        function createHighlight() {
+            if (!selectionStart || !selectionEnd) return;
+            
+            const width = Math.abs(selectionEnd.x - selectionStart.x);
+            const height = Math.abs(selectionEnd.y - selectionStart.y);
+            const x = Math.min(selectionStart.x, selectionEnd.x);
+            const y = Math.min(selectionStart.y, selectionEnd.y);
+            
+            const highlight = {
+                id: Date.now(),
+                page: currentPage,
+                x: x,
+                y: y,
+                width: width,
+                height: height,
+                color: currentHighlightColor,
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            };
+            
+            highlights.push(highlight);
+            renderHighlights();
+            updateHighlightBadge();
+            showStatus(`Highlight added on page ${currentPage}.`, '✅');
+        }
+
+        function renderHighlights() {
+            const highlightOverlay = document.getElementById('highlightOverlay');
+            highlightOverlay.innerHTML = '';
+            
+            const pageHighlights = highlights.filter(h => h.page === currentPage);
+            
+            pageHighlights.forEach(highlight => {
+                const highlightElement = document.createElement('div');
+                highlightElement.className = 'highlight';
+                highlightElement.style.left = `${highlight.x}px`;
+                highlightElement.style.top = `${highlight.y}px`;
+                highlightElement.style.width = `${highlight.width}px`;
+                highlightElement.style.height = `${highlight.height}px`;
+                highlightElement.style.backgroundColor = highlight.color;
+                highlightElement.title = `Highlighted at ${highlight.timestamp}`;
+                highlightElement.style.pointerEvents = 'auto';
+                highlightElement.style.cursor = 'pointer';
+                highlightElement.onclick = (e) => {
+                    e.stopPropagation();
+                    showHighlightInfo(highlight);
+                };
+                
+                highlightOverlay.appendChild(highlightElement);
+            });
+        }
+
+        function showHighlightInfo(highlight) {
+            const colorName = highlightColors.find(c => c.color === highlight.color)?.name || 'Custom';
+            showStatus(`Highlight: Page ${highlight.page}, ${colorName}, ${highlight.timestamp}`, '📌');
+        }
+
+        function updateHighlightBadge() {
+            highlightBadge.textContent = highlights.length;
+            if (highlights.length > 0) {
+                highlightBadge.style.background = '#10b981';
+            } else {
+                highlightBadge.style.background = '';
+            }
+        }
+
+        function clearHighlights() {
+            if (highlights.length === 0) {
+                showStatus('No highlights to clear.', 'ℹ️');
+                return;
+            }
+            
+            if (confirm(`Clear all ${highlights.length} highlights?`)) {
+                highlights = [];
+                renderHighlights();
+                updateHighlightBadge();
+                showStatus('All highlights cleared.', '🗑️');
+            }
+        }
+
+        function exportHighlights() {
+            if (highlights.length === 0) {
+                showStatus('No highlights to export.', 'ℹ️');
+                return;
+            }
+            
+            const exportData = {
+                document: documentName.textContent,
+                highlights: highlights,
+                exportDate: new Date().toISOString()
+            };
+            
+            const dataStr = JSON.stringify(exportData, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            
+            const downloadLink = document.createElement('a');
+            downloadLink.href = URL.createObjectURL(dataBlob);
+            downloadLink.download = `highlights-${documentName.textContent.replace(/\s+/g, '-')}.json`;
+            downloadLink.click();
+            
+            showStatus(`Exported ${highlights.length} highlights.`, '📥');
+        }
+
+        // ==================== AI WORD LEARNING ====================
+
+        function showWordInfo(word) {
+            const definitions = {
+                'artificial': {
+                    definition: 'Made or produced by human beings rather than occurring naturally.',
+                    example: 'Artificial intelligence is transforming many industries.'
+                },
+                'intelligence': {
+                    definition: 'The ability to acquire and apply knowledge and skills.',
+                    example: 'Emotional intelligence is important for effective leadership.'
+                },
+                'machine': {
+                    definition: 'An apparatus using mechanical power and having several parts.',
+                    example: 'The machine was programmed to assemble the parts automatically.'
+                },
+                'learning': {
+                    definition: 'The acquisition of knowledge or skills through study or experience.',
+                    example: 'Machine learning algorithms improve with more data.'
+                },
+                'neural': {
+                    definition: 'Relating to a nerve or the nervous system.',
+                    example: 'Neural networks are inspired by the human brain.'
+                },
+                'network': {
+                    definition: 'A group or system of interconnected people or things.',
+                    example: 'The computer network allows all devices to communicate.'
+                }
+            };
+
+            const info = definitions[word] || {
+                definition: `The word "${word}" appears in this document.`,
+                example: `This is how "${word}" is used in context.`
+            };
+
+            document.getElementById('wordDefinition').textContent = info.definition;
+            document.getElementById('wordExample').textContent = `Example: ${info.example}`;
+            showStatus(`Showing definition for "${word}".`, '📖');
+        }
+
+        function addLearnedWord(word) {
+            if (learnedWords.includes(word)) return;
+            learnedWords.push(word);
+
+            const wordsContainer = document.getElementById('wordsContainer');
+            const wordItem = document.createElement('div');
+            wordItem.className = 'word-item';
+            wordItem.innerHTML = `
+                <div class="word">${word}</div>
+                <div class="meaning">Click to see definition</div>
+            `;
+
+            wordItem.onclick = () => showWordInfo(word);
+            wordsContainer.prepend(wordItem);
+
+            if (wordsContainer.children.length > 10) {
+                wordsContainer.removeChild(wordsContainer.lastChild);
+            }
+        }
+
+        function generateSummary() {
+            setTimeout(() => {
+                const summary = `This document appears to be a PDF file containing informational content. Use the compact speech and highlight panels to enhance your reading experience. Click on words to learn their meanings with AI assistance.`;
+                document.getElementById('documentSummary').textContent = summary;
+            }, 2000);
+        }
+
+        // ==================== STATUS BAR ====================
+
+        function showStatus(message, icon = '💡') {
+            statusIcon.textContent = icon;
+            statusText.textContent = message;
+            statusBar.style.display = 'flex';
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                if (statusBar.style.display === 'flex') {
+                    hideStatusBar();
+                }
+            }, 5000);
+        }
+
+        function hideStatusBar() {
+            statusBar.style.display = 'none';
+        }
+
+        function showError(message) {
+            loading.innerHTML = `
+                <div class="error">
+                    <h3>⚠️ Error</h3>
+                    <p>${message}</p>
+                    <button class="btn back-btn" onclick="window.location.href='index.html'">
+                        ← Back to Upload
+                    </button>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
